@@ -9,7 +9,7 @@ homeassistant = ["serde"]
 serde = ["dep:serde", "dep:serde-json-core"]
 
 [dependencies]
-defmt = "0.3.8"
+defmt = "0.3.10"
 embassy-net = { version = "0.5.0", features = [
   "dns",
   "medium-ip",
