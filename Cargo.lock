@@ -339,7 +339,7 @@ dependencies = [
  "embassy-time",
  "embedded-io",
  "embedded-io-async",
- "heapless 0.7.17",
+ "heapless 0.8.0",
  "hex",
  "log",
  "mqttrs",
