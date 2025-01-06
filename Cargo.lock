@@ -3,10 +3,6 @@
 version = 4
 
 [[package]]
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 714deec (Back out "Remove manual packet length calculations" for breaking RP2040)
 name = "atomic-polyfill"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -16,11 +12,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-=======
->>>>>>> c563672 (added tests for pipe)
-=======
->>>>>>> 714deec (Back out "Remove manual packet length calculations" for breaking RP2040)
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -313,15 +304,6 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "hash32"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]
