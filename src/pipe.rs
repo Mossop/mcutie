@@ -173,7 +173,7 @@ mod tests {
 
     use super::ConnectedPipe;
 
-    async fn wait_millis(millis: u64) {
+    async fn wait_milis(milis: u64) {
         Delay::new(Duration::from_millis(milis)).await;
     }
 
