@@ -195,7 +195,7 @@ mod tests {
         }).unwrap();
 
 
-        // Task the receives
+        // Task that receives
         spawner.spawn(async {
             let reader = PIPE.reader();
             let value = reader.receive().await;
