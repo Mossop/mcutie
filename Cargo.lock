@@ -421,7 +421,6 @@ dependencies = [
  "futures-timer",
  "futures-util",
  "heapless",
->>>>>>> c563672 (added tests for pipe)
  "hex",
  "log",
  "mqttrs",
