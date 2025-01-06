@@ -4,6 +4,9 @@ version = 4
 
 [[package]]
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 714deec (Back out "Remove manual packet length calculations" for breaking RP2040)
 name = "atomic-polyfill"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13,8 +16,11 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 =======
 >>>>>>> c563672 (added tests for pipe)
+=======
+>>>>>>> 714deec (Back out "Remove manual packet length calculations" for breaking RP2040)
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -413,7 +419,7 @@ dependencies = [
  "futures-test",
  "futures-timer",
  "futures-util",
- "heapless",
+ "heapless 0.7.17",
  "hex",
  "log",
  "mqttrs",
