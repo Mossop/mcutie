@@ -312,16 +312,6 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "pin-utils",
- "slab",
-]
-
-[[package]]
-name = "hash32"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]
@@ -424,11 +414,14 @@ dependencies = [
  "embassy-time",
  "embedded-io",
  "embedded-io-async",
+ "heapless 0.7.17",
+=======
  "futures-executor",
  "futures-test",
  "futures-timer",
  "futures-util",
- "heapless 0.7.17",
+ "heapless",
+>>>>>>> c563672 (added tests for pipe)
  "hex",
  "log",
  "mqttrs",
