@@ -312,6 +312,7 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "pin-utils",
+ "slab",
 ]
 
 [[package]]
@@ -414,13 +415,11 @@ dependencies = [
  "embassy-time",
  "embedded-io",
  "embedded-io-async",
- "heapless 0.7.17",
-=======
  "futures-executor",
  "futures-test",
  "futures-timer",
  "futures-util",
- "heapless",
+ "heapless 0.7.17",
  "hex",
  "log",
  "mqttrs",
