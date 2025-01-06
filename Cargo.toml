@@ -39,3 +39,14 @@ once_cell = { version = "1.20.2", default-features = false, features = [
 ] }
 hex = { version = "0.4.3", default-features = false }
 pin-project = "1.1.7"
+
+[dev-dependencies]
+futures-executor = { version = "0.3.31", features = ["thread-pool"] }
+futures-test = "0.3.31"
+futures-timer = "3.0.3"
+futures-util = "0.3.31"
+static_cell = "2.1.0"
+
+# duplicate dependencies for testing
+# these dependencies need the std featue in tests
+embassy-sync = { version = "0.6.1", features = ["std"]}

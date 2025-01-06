@@ -160,3 +160,108 @@ impl<M: RawMutex, T, const N: usize> ConnectedPipe<M, T, N> {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use core::time::Duration;
+
+    use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+    use futures_executor::{LocalPool, ThreadPool};
+    use futures_util::{future::select, pin_mut, task::SpawnExt, FutureExt};
+    use futures_timer::Delay;
+
+    use super::ConnectedPipe;
+
+    async fn wait_milis(milis: u64) {
+        Delay::new(Duration::from_millis(milis)).await;
+    }
+
+    // #[futures_test::test]
+    #[test]
+    fn test_send_receive() {
+        let mut executor = LocalPool::new();
+        let spawner = executor.spawner();
+
+        static PIPE: ConnectedPipe<CriticalSectionRawMutex, usize, 5> = ConnectedPipe::new();
+
+        // Task that sends 
+        spawner.spawn(async {
+            wait_milis(10).await;
+
+            PIPE.push(23).await;
+            PIPE.push(56).await;
+            PIPE.push(67).await;
+        }).unwrap();
+
+
+        // Task the receives
+        spawner.spawn(async {
+            let reader = PIPE.reader();
+            let value = reader.receive().await;
+            assert_eq!(value, 23);
+            let value = reader.receive().await;
+            assert_eq!(value, 56);
+            let value = reader.receive().await;
+            assert_eq!(value, 67);
+
+        }).unwrap();
+
+        executor.run();
+    }
+
+    #[futures_test::test]
+    async fn test_send_drop() {
+
+        static PIPE: ConnectedPipe<CriticalSectionRawMutex, usize, 5> = ConnectedPipe::new();
+
+        PIPE.push(23).await;
+        PIPE.push(56).await;
+        PIPE.push(67).await;
+
+
+        // Create a reader after sending
+        let reader = PIPE.reader();
+        let receive = reader.receive()
+            .fuse();
+        pin_mut!(receive);
+
+        let timeout = wait_milis(50).fuse();
+        pin_mut!(timeout);
+
+        let either = select(receive, timeout).await;
+        
+        match either {
+            futures_util::future::Either::Left(_) => {
+                panic!("There should be nothing to receive!");
+            },
+            futures_util::future::Either::Right(_) => {},
+        }
+    }
+
+    #[futures_test::test]
+    async fn test_bulk_send_publish() {
+        static PIPE: ConnectedPipe<CriticalSectionRawMutex, usize, 5> = ConnectedPipe::new();
+
+        let executor = ThreadPool::new().unwrap();
+
+        executor.spawn(async {
+            for i in 0..1000 {
+                PIPE.push(i).await;
+            }
+        }).unwrap();
+
+        executor.spawn(async {
+            for i in 1000..2000 {
+                PIPE.push(i).await;
+            }
+        }).unwrap();
+
+        let reader = PIPE.reader();
+        for _ in 0..800 {
+            reader.receive().await;
+        }
+
+    }
+
+}
