@@ -136,6 +136,17 @@ pub struct PublishJson<'a, T, D: serde::Serialize> {
     pub(crate) retain: bool,
 }
 
+impl <'a, T, D: serde::Serialize> PublishJson<'a, T, D> {
+
+    /// Create new `PublishJson` with given topic, data, QoS and retain
+    pub fn new(topic: &'a Topic<T>, data: D, qos: QoS, retain: bool) -> Self {
+        Self {
+            topic, data, qos, retain
+        }
+    }
+
+}
+
 #[cfg(feature = "serde")]
 impl<T, D: serde::Serialize> PublishJson<'_, T, D> {
     /// Sets the QoS level for this message.
