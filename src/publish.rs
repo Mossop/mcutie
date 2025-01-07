@@ -136,6 +136,7 @@ pub struct PublishJson<'a, T, D: serde::Serialize> {
     pub(crate) retain: bool,
 }
 
+#[cfg(feature = "serde")]
 impl <'a, T, D: serde::Serialize> PublishJson<'a, T, D> {
 
     /// Create new `PublishJson` with given topic, data, QoS and retain
