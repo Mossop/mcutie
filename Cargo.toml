@@ -38,7 +38,7 @@ once_cell = { version = "1.20.2", default-features = false, features = [
   "critical-section",
 ] }
 hex = { version = "0.4.3", default-features = false }
-pin-project = "1.1.7"
+pin-project = "1.1.9"
 
 [dev-dependencies]
 futures-executor = { version = "0.3.31", features = ["thread-pool"] }
