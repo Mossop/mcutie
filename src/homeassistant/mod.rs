@@ -50,6 +50,7 @@ use crate::{
 };
 
 pub mod binary_sensor;
+pub mod button;
 pub mod light;
 pub mod sensor;
 mod ser;
