@@ -68,6 +68,8 @@ pub enum Error {
     TooLarge,
     /// A packet or payload could not be decoded or encoded.
     PacketError,
+    /// An invalid or unsupported operation was attempted.
+    Invalid,
 }
 
 #[allow(clippy::large_enum_variant)]

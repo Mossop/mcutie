@@ -88,7 +88,13 @@ impl<const A: usize, C: Component, S: Serializer> Serializer for DiscoverySerial
         name: &'static str,
         mut len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
-        len += 6;
+        len += 5;
+        if self.discovery.state_topic.is_some() {
+            len += 1;
+        }
+        if self.discovery.command_topic.is_some() {
+            len += 1;
+        }
         if self.discovery.unique_id.is_some() {
             len += 1;
         }
@@ -104,7 +110,18 @@ impl<const A: usize, C: Component, S: Serializer> Serializer for DiscoverySerial
         serializer.serialize_field("obj_id", self.discovery.object_id)?;
 
         serializer.serialize_field("name", self.discovery.name)?;
-        serializer.serialize_field("stat_t", &self.discovery.state_topic)?;
+
+        if let Some(t) = self.discovery.state_topic {
+            serializer.serialize_field("stat_t", &t)?;
+        } else {
+            serializer.skip_field("stat_t")?;
+        }
+
+        if let Some(t) = self.discovery.command_topic {
+            serializer.serialize_field("cmd_t", &t)?;
+        } else {
+            serializer.skip_field("cmd_t")?;
+        }
 
         match &self.discovery.availability {
             AvailabilityTopics::None => {

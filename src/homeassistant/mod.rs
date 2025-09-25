@@ -20,7 +20,8 @@
 //!     unique_id: Some("motion"),
 //!     name: "Motion",
 //!     availability: AvailabilityTopics::All([DEVICE_AVAILABILITY_TOPIC]),
-//!     state_topic: MOTION_STATE_TOPIC,
+//!     state_topic: Some(MOTION_STATE_TOPIC),
+//!     command_topic: None,
 //!     component: BinarySensor {
 //!         device_class: Some(BinarySensorClass::Motion),
 //!     },
@@ -206,7 +207,9 @@ pub struct Entity<'a, const A: usize, C: Component> {
     /// determine this entity's availability.
     pub availability: AvailabilityTopics<'a, A>,
     /// The state topic that this entity's state is published to.
-    pub state_topic: Topic<&'a str>,
+    pub state_topic: Option<Topic<&'a str>>,
+    /// The command topic that this entity receives commands from.
+    pub command_topic: Option<Topic<&'a str>>,
     /// The specific entity.
     pub component: C,
 }
@@ -233,8 +236,16 @@ impl<const A: usize, C: Component> Entity<'_, A, C> {
     }
 
     /// Publishes this entity's state to the broker.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Invalid`] if the entity doesn't have a state topic.
     pub async fn publish_state(&self, state: C::State) -> Result<(), Error> {
-        self.component.publish_state(&self.state_topic, state).await
+        if let Some(topic) = self.state_topic {
+            self.component.publish_state(&topic, state).await
+        } else {
+            Err(Error::Invalid)
+        }
     }
 }
 

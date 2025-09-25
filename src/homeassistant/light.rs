@@ -324,9 +324,6 @@ impl Serialize for LightState<'_> {
 
 /// A light entity
 pub struct Light<'a, const C: usize, const E: usize> {
-    /// A command topic that Home Assistant can use to control the light.
-    /// It will be sent a [`LightState`] payload.
-    pub command_topic: Option<Topic<&'a str>>,
     /// The color modes supported by the light.
     pub supported_color_modes: [SupportedColorMode; C],
     /// Any effects that can be used.
@@ -338,7 +335,7 @@ impl<const C: usize, const E: usize> Serialize for Light<'_, C, E> {
     where
         S: Serializer,
     {
-        let mut len = 3;
+        let mut len = 2;
 
         if C > 0 {
             len += 1;
@@ -350,7 +347,6 @@ impl<const C: usize, const E: usize> Serialize for Light<'_, C, E> {
 
         let mut serializer = serializer.serialize_struct("Light", len)?;
 
-        serializer.serialize_field("cmd_t", &self.command_topic)?;
         serializer.serialize_field("schema", "json")?;
 
         if C > 0 {
