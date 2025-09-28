@@ -15,7 +15,7 @@ log = ["dep:log"]
 
 [dependencies]
 defmt = { version = "0.3.10", optional = true }
-log = { version = "0.4.22", optional = true }
+log = { version = "0.4.27", optional = true }
 embassy-net = { version = "0.5.0", features = [
   "dns",
   "medium-ip",
