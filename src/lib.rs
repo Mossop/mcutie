@@ -8,12 +8,13 @@ use core::{ops::Deref, str};
 
 pub use buffer::Buffer;
 use embassy_net::{HardwareAddress, Stack};
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, once_lock::OnceLock,
+};
 use heapless::String;
 pub use io::McutieTask;
 pub use mqttrs::QoS;
 use mqttrs::{Pid, SubscribeReturnCodes};
-use once_cell::sync::OnceCell;
 pub use publish::*;
 pub use topic::Topic;
 
@@ -46,15 +47,15 @@ const CONFIRMATION_TIMEOUT: u64 = 2000;
 
 static DATA_CHANNEL: Channel<CriticalSectionRawMutex, MqttMessage, 10> = Channel::new();
 
-static DEVICE_TYPE: OnceCell<String<32>> = OnceCell::new();
-static DEVICE_ID: OnceCell<String<32>> = OnceCell::new();
+static DEVICE_TYPE: OnceLock<String<32>> = OnceLock::new();
+static DEVICE_ID: OnceLock<String<32>> = OnceLock::new();
 
 fn device_id() -> &'static str {
-    DEVICE_ID.get().unwrap()
+    DEVICE_ID.try_get().unwrap()
 }
 
 fn device_type() -> &'static str {
-    DEVICE_TYPE.get().unwrap()
+    DEVICE_TYPE.try_get().unwrap()
 }
 
 /// Various errors
@@ -195,7 +196,7 @@ impl<'t, T: Deref<Target = str> + 't, L: Publishable + 't, const S: usize>
     pub fn build(self) -> (McutieReceiver, McutieTask<'t, T, L, S>) {
         let mut dtype = String::<32>::new();
         dtype.push_str(self.device_type).unwrap();
-        DEVICE_TYPE.set(dtype).unwrap();
+        DEVICE_TYPE.init(dtype).unwrap();
 
         let mut did = String::<32>::new();
         if let Some(device_id) = self.device_id {
@@ -206,7 +207,7 @@ impl<'t, T: Deref<Target = str> + 't, L: Publishable + 't, const S: usize>
             did.push_str(str::from_utf8(&buffer).unwrap()).unwrap();
         }
 
-        DEVICE_ID.set(did).unwrap();
+        DEVICE_ID.init(did).unwrap();
 
         (
             McutieReceiver {},
