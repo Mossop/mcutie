@@ -98,10 +98,10 @@ pub(crate) async fn wait_for_publish(
                     WaitResult::Lagged(_) => {
                         // Maybe we missed the message?
                     }
-                    WaitResult::Message(ControlMessage::Published(published_pid)) => {
-                        if published_pid == expected_pid {
-                            return Ok(());
-                        }
+                    WaitResult::Message(ControlMessage::Published(published_pid))
+                        if published_pid == expected_pid =>
+                    {
+                        return Ok(());
                     }
                     _ => {}
                 }
