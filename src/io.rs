@@ -404,7 +404,7 @@ where
     }
 
     /// Runs the MQTT stack. The future returned from this must be awaited for everything to work.
-    pub async fn run(self) {
+    pub async fn run(self) -> ! {
         let mut timeout: Option<u64> = None;
 
         let mut rx_buffer = [0; 4096];
