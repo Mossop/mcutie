@@ -198,13 +198,11 @@ impl<T: Deref<Target = str>> Topic<T> {
                             WaitResult::Message(ControlMessage::Subscribed(
                                 subscribed_pid,
                                 return_code,
-                            )) => {
-                                if subscribed_pid == pid {
-                                    if matches!(return_code, SubscribeReturnCodes::Success(_)) {
-                                        return Ok(());
-                                    } else {
-                                        return Err(Error::IOError);
-                                    }
+                            )) if subscribed_pid == pid => {
+                                if matches!(return_code, SubscribeReturnCodes::Success(_)) {
+                                    return Ok(());
+                                } else {
+                                    return Err(Error::IOError);
                                 }
                             }
                             _ => {}
@@ -253,10 +251,10 @@ impl<T: Deref<Target = str>> Topic<T> {
                             WaitResult::Lagged(_) => {
                                 // Maybe we missed the message?
                             }
-                            WaitResult::Message(ControlMessage::Unsubscribed(subscribed_pid)) => {
-                                if subscribed_pid == pid {
-                                    return Ok(());
-                                }
+                            WaitResult::Message(ControlMessage::Unsubscribed(subscribed_pid))
+                                if subscribed_pid == pid =>
+                            {
+                                return Ok(());
                             }
                             _ => {}
                         }
