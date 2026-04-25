@@ -117,4 +117,8 @@ impl<const N: usize> embedded_io_async::Write for Buffer<N> {
     async fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         <Self as embedded_io::Write>::write(self, buf)
     }
+
+    async fn flush(&mut self) -> Result<(), Self::Error> {
+        <Self as embedded_io::Write>::flush(self)
+    }
 }
