@@ -2,7 +2,7 @@
 #![doc = include_str!("../README.md")]
 #![deny(unreachable_pub)]
 #![warn(missing_docs)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use core::{ops::Deref, str};
 
