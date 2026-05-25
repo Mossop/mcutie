@@ -40,7 +40,7 @@ pin-project = "1.1.13"
 [dev-dependencies]
 futures-executor = { version = "0.3.32", features = ["thread-pool"] }
 futures-test = "0.3.32"
-futures-timer = "3.0.3"
+futures-timer = "3.0.4"
 futures-util = "0.3.32"
 static_cell = "2.1.1"
 
