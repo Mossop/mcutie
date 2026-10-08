@@ -101,3 +101,29 @@ impl Component for Sensor<'_> {
         topic.with_display(state).publish().await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Sensor, SensorClass, SensorStateClass};
+    use crate::test_support::to_json;
+
+    #[test]
+    fn component_json() {
+        assert_eq!(
+            to_json(&Sensor {
+                device_class: Some(SensorClass::Pm25),
+                state_class: Some(SensorStateClass::TotalIncreasing),
+                unit_of_measurement: Some("µg/m³"),
+            }),
+            r#"{"device_class":"pm25","state_class":"total_increasing","unit_of_measurement":"µg/m³"}"#
+        );
+        assert_eq!(
+            to_json(&Sensor {
+                device_class: None,
+                state_class: None,
+                unit_of_measurement: None,
+            }),
+            r#"{"device_class":null,"state_class":null,"unit_of_measurement":null}"#
+        );
+    }
+}

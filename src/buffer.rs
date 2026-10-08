@@ -102,7 +102,7 @@ impl<const N: usize> embedded_io::Write for Buffer<N> {
         if writable == 0 {
             Err(SliceWriteError::Full)
         } else {
-            self.bytes[self.cursor..self.cursor + writable].copy_from_slice(buf);
+            self.bytes[self.cursor..self.cursor + writable].copy_from_slice(&buf[..writable]);
             self.cursor += writable;
             Ok(writable)
         }
@@ -120,5 +120,117 @@ impl<const N: usize> embedded_io_async::Write for Buffer<N> {
 
     async fn flush(&mut self) -> Result<(), Self::Error> {
         <Self as embedded_io::Write>::flush(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use embedded_io::{SliceWriteError, Write};
+    use mqttrs::{decode_slice, Packet, Pid};
+
+    use super::Buffer;
+    use crate::Error;
+
+    #[test]
+    fn new_buffer_is_empty() {
+        let buffer = Buffer::<8>::new();
+        assert_eq!(&*buffer, b"");
+        assert_eq!(buffer.available(), 8);
+    }
+
+    #[test]
+    fn from_slice() {
+        let buffer = Buffer::<8>::from(b"hello").unwrap();
+        assert_eq!(&*buffer, b"hello");
+        assert_eq!(buffer.available(), 3);
+
+        let buffer = Buffer::<5>::from(b"hello").unwrap();
+        assert_eq!(buffer.available(), 0);
+
+        assert!(matches!(Buffer::<4>::from(b"hello"), Err(Error::TooLarge)));
+    }
+
+    #[test]
+    fn write_until_full() {
+        let mut buffer = Buffer::<4>::new();
+        assert_eq!(buffer.write(b"").unwrap(), 0);
+        assert_eq!(buffer.write(b"ab").unwrap(), 2);
+        // Partial writes return how much was written.
+        assert_eq!(buffer.write(b"cdef").unwrap(), 2);
+        assert_eq!(&*buffer, b"abcd");
+        assert_eq!(buffer.write(b"g"), Err(SliceWriteError::Full));
+        // Empty writes always succeed.
+        assert_eq!(buffer.write(b"").unwrap(), 0);
+        buffer.flush().unwrap();
+    }
+
+    #[test]
+    fn fmt_write() {
+        let mut buffer = Buffer::<8>::new();
+        core::fmt::Write::write_fmt(&mut buffer, format_args!("{}-{}", 12, "ab")).unwrap();
+        assert_eq!(&*buffer, b"12-ab");
+
+        assert!(core::fmt::Write::write_str(&mut buffer, "toolong").is_err());
+    }
+
+    #[test]
+    fn async_write() {
+        let mut buffer = Buffer::<8>::new();
+        futures_executor::block_on(async {
+            embedded_io_async::Write::write_all(&mut buffer, b"abc")
+                .await
+                .unwrap();
+            embedded_io_async::Write::flush(&mut buffer).await.unwrap();
+        });
+        assert_eq!(&*buffer, b"abc");
+    }
+
+    #[test]
+    fn encode_packet() {
+        let mut buffer = Buffer::<64>::new();
+        buffer.encode_packet(&Packet::Pingreq).unwrap();
+        buffer
+            .encode_packet(&Packet::Puback(Pid::try_from(5).unwrap()))
+            .unwrap();
+
+        assert_eq!(&*buffer, &[0xc0, 0x00, 0x40, 0x02, 0x00, 0x05]);
+        assert_eq!(decode_slice(&buffer).unwrap(), Some(Packet::Pingreq));
+
+        let mut small = Buffer::<1>::new();
+        assert!(small.encode_packet(&Packet::Pingreq).is_err());
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn json_round_trip() {
+        #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
+        struct Data<'a> {
+            name: &'a str,
+            value: u32,
+        }
+
+        let mut buffer = Buffer::<64>::new();
+        buffer
+            .serialize_json(&Data {
+                name: "foo",
+                value: 42,
+            })
+            .unwrap();
+        assert_eq!(&*buffer, br#"{"name":"foo","value":42}"#);
+
+        let data: Data<'_> = buffer.deserialize_json().unwrap();
+        assert_eq!(
+            data,
+            Data {
+                name: "foo",
+                value: 42
+            }
+        );
+
+        let mut small = Buffer::<4>::new();
+        assert!(small.serialize_json(&data).is_err());
+
+        let invalid = Buffer::<8>::from(b"{").unwrap();
+        assert!(invalid.deserialize_json::<Data<'_>>().is_err());
     }
 }

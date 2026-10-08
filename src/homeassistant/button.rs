@@ -38,3 +38,26 @@ impl Component for Button {
         Err(Error::Invalid)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Button, ButtonClass};
+    use crate::{homeassistant::Component, test_support::to_json, Error, Topic};
+
+    #[test]
+    fn component_json() {
+        assert_eq!(
+            to_json(&Button {
+                device_class: Some(ButtonClass::Restart)
+            }),
+            r#"{"device_class":"restart"}"#
+        );
+    }
+
+    #[test]
+    fn has_no_state() {
+        let button = Button { device_class: None };
+        let result = futures_executor::block_on(button.publish_state(&Topic::General("x"), ()));
+        assert!(matches!(result, Err(Error::Invalid)));
+    }
+}

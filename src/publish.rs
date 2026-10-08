@@ -171,3 +171,125 @@ impl<'a, T: Deref<Target = str> + 'a, D: serde::Serialize> Publishable for Publi
         self.retain
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use mqttrs::QoS;
+
+    use super::Publishable;
+    use crate::{test_support::init_device, Error, Payload, Topic, TopicString, PAYLOAD_LENGTH};
+
+    fn topic_of(p: &impl Publishable) -> TopicString {
+        let mut topic = TopicString::new();
+        p.write_topic(&mut topic).unwrap();
+        topic
+    }
+
+    fn payload_of(p: &impl Publishable) -> Payload {
+        let mut payload = Payload::new();
+        p.write_payload(&mut payload).unwrap();
+        payload
+    }
+
+    #[test]
+    fn bytes() {
+        init_device();
+        let topic = Topic::Device("state");
+
+        let message = topic.with_bytes(b"on");
+        assert_eq!(Publishable::qos(&message), QoS::AtMostOnce);
+        assert!(!Publishable::retain(&message));
+        assert_eq!(topic_of(&message), "testdev/0123456789ab/state");
+        assert_eq!(&*payload_of(&message), b"on");
+
+        let message = topic.with_bytes("off").qos(QoS::AtLeastOnce).retain(true);
+        assert_eq!(Publishable::qos(&message), QoS::AtLeastOnce);
+        assert!(Publishable::retain(&message));
+        assert_eq!(&*payload_of(&message), b"off");
+    }
+
+    #[test]
+    fn bytes_too_large() {
+        let topic = Topic::General("big");
+        let data = [0_u8; PAYLOAD_LENGTH + 1];
+        let mut payload = Payload::new();
+        assert!(matches!(
+            topic.with_bytes(data).write_payload(&mut payload),
+            Err(Error::TooLarge)
+        ));
+    }
+
+    #[test]
+    fn display() {
+        init_device();
+        let topic = Topic::DeviceType("temp");
+
+        let message = topic.with_display(21.5);
+        assert_eq!(Publishable::qos(&message), QoS::AtMostOnce);
+        assert!(!Publishable::retain(&message));
+        assert_eq!(topic_of(&message), "testdev/temp");
+        assert_eq!(&*payload_of(&message), b"21.5");
+
+        let message = topic
+            .with_display("hello")
+            .qos(QoS::ExactlyOnce)
+            .retain(true);
+        assert_eq!(Publishable::qos(&message), QoS::ExactlyOnce);
+        assert!(Publishable::retain(&message));
+    }
+
+    #[test]
+    fn display_too_large() {
+        struct Huge;
+        impl core::fmt::Display for Huge {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                for _ in 0..=PAYLOAD_LENGTH {
+                    f.write_str("x")?;
+                }
+                Ok(())
+            }
+        }
+
+        let mut payload = Payload::new();
+        assert!(matches!(
+            Topic::General("t")
+                .with_display(Huge)
+                .write_payload(&mut payload),
+            Err(Error::TooLarge)
+        ));
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn json() {
+        #[derive(serde::Serialize)]
+        struct Data {
+            value: u8,
+        }
+
+        let topic = Topic::General("data");
+        let message = topic.with_json(Data { value: 3 });
+        assert_eq!(Publishable::qos(&message), QoS::AtMostOnce);
+        assert!(!Publishable::retain(&message));
+        assert_eq!(topic_of(&message), "data");
+        assert_eq!(&*payload_of(&message), br#"{"value":3}"#);
+
+        let message = topic
+            .with_json(Data { value: 3 })
+            .qos(QoS::AtLeastOnce)
+            .retain(true);
+        assert_eq!(Publishable::qos(&message), QoS::AtLeastOnce);
+        assert!(Publishable::retain(&message));
+    }
+
+    #[test]
+    fn topic_too_large() {
+        let long = [b'a'; 300];
+        let topic = Topic::General(core::str::from_utf8(&long).unwrap());
+        let mut buffer = TopicString::new();
+        assert!(matches!(
+            topic.with_bytes(b"").write_topic(&mut buffer),
+            Err(Error::TooLarge)
+        ));
+    }
+}
