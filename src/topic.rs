@@ -29,7 +29,7 @@ use crate::{
 ///   let _ = DEVICE_AVAILABILITY.with_bytes(status.as_bytes()).publish().await;
 /// }
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Topic<T> {
     /// A topic that is prefixed with the device type.
     DeviceType(T),
@@ -97,7 +97,7 @@ impl<T> Topic<T> {
 impl Topic<TopicString> {
     pub(crate) fn from_str(mut st: &str) -> Result<Self, ()> {
         let mut strip_prefix = |pr: &str| -> bool {
-            if st.starts_with(pr) && &st[pr.len()..pr.len() + 1] == "/" {
+            if st.starts_with(pr) && st[pr.len()..].starts_with('/') {
                 st = &st[pr.len() + 1..];
                 true
             } else {
@@ -269,6 +269,129 @@ impl<T: Deref<Target = str>> Topic<T> {
             }
         } else {
             Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use heapless::String;
+
+    use super::Topic;
+    use crate::{test_support::init_device, Error, TopicString};
+
+    fn path<T: core::ops::Deref<Target = str>>(topic: &Topic<T>) -> TopicString {
+        let mut result = TopicString::new();
+        topic.to_string(&mut result).unwrap();
+        result
+    }
+
+    #[test]
+    fn equality() {
+        assert_eq!(Topic::Device("a"), Topic::Device("a"));
+        assert_eq!(Topic::DeviceType("a"), Topic::DeviceType("a"));
+        assert_eq!(Topic::General("a"), Topic::General("a"));
+        assert_ne!(Topic::Device("a"), Topic::Device("b"));
+        assert_ne!(Topic::Device("a"), Topic::DeviceType("a"));
+        assert_ne!(Topic::Device("a"), Topic::General("a"));
+        assert_ne!(Topic::DeviceType("a"), Topic::General("a"));
+
+        let owned = Topic::General(TopicString::from("a"));
+        assert_eq!(owned, Topic::General("a"));
+    }
+
+    #[test]
+    fn as_ref() {
+        let owned = TopicString::from("x/y");
+        assert_eq!(Topic::Device(owned.clone()).as_ref(), Topic::Device("x/y"));
+        assert_eq!(
+            Topic::DeviceType(owned.clone()).as_ref(),
+            Topic::DeviceType("x/y")
+        );
+        assert_eq!(Topic::General(owned).as_ref(), Topic::General("x/y"));
+    }
+
+    #[test]
+    fn to_string() {
+        init_device();
+        assert_eq!(path(&Topic::Device("state")), "testdev/0123456789ab/state");
+        assert_eq!(path(&Topic::DeviceType("state")), "testdev/state");
+        assert_eq!(path(&Topic::General("some/topic")), "some/topic");
+    }
+
+    #[test]
+    fn to_string_too_large() {
+        init_device();
+        for topic in [
+            Topic::Device("abcdef"),
+            Topic::DeviceType("abcdef"),
+            Topic::General("abcdef"),
+        ] {
+            let mut small = String::<5>::new();
+            assert!(matches!(topic.to_string(&mut small), Err(Error::TooLarge)));
+        }
+
+        // Fails part way through the prefix.
+        let mut small = String::<10>::new();
+        assert!(matches!(
+            Topic::Device("x").to_string(&mut small),
+            Err(Error::TooLarge)
+        ));
+    }
+
+    #[test]
+    fn from_str() {
+        init_device();
+        assert_eq!(
+            Topic::from_str("testdev/0123456789ab/state").unwrap(),
+            Topic::Device("state")
+        );
+        assert_eq!(
+            Topic::from_str("testdev/state").unwrap(),
+            Topic::DeviceType("state")
+        );
+        assert_eq!(
+            Topic::from_str("testdev/other/state").unwrap(),
+            Topic::DeviceType("other/state")
+        );
+        assert_eq!(
+            Topic::from_str("other/state").unwrap(),
+            Topic::General("other/state")
+        );
+        // A prefix match must be followed by a separator.
+        assert_eq!(
+            Topic::from_str("testdevice/state").unwrap(),
+            Topic::General("testdevice/state")
+        );
+        assert_eq!(
+            Topic::from_str("testdev/0123456789abc/x").unwrap(),
+            Topic::DeviceType("0123456789abc/x")
+        );
+    }
+
+    #[test]
+    fn from_str_exact_prefix() {
+        init_device();
+        assert_eq!(
+            Topic::from_str("testdev").unwrap(),
+            Topic::General("testdev")
+        );
+        assert_eq!(Topic::from_str("testdev/").unwrap(), Topic::DeviceType(""));
+        assert_eq!(
+            Topic::from_str("testdev/0123456789ab").unwrap(),
+            Topic::DeviceType("0123456789ab")
+        );
+    }
+
+    #[test]
+    fn round_trip() {
+        init_device();
+        for topic in [
+            Topic::Device("a/b"),
+            Topic::DeviceType("c"),
+            Topic::General("d/e/f"),
+        ] {
+            assert_eq!(Topic::from_str(&path(&topic)).unwrap(), topic);
         }
     }
 }

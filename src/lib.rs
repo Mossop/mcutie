@@ -12,6 +12,7 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, once_lock::OnceLock,
 };
 use heapless::String;
+use io::Connection;
 pub use io::McutieTask;
 pub use mqttrs::QoS;
 use mqttrs::{Pid, SubscribeReturnCodes};
@@ -29,9 +30,14 @@ mod pipe;
 mod publish;
 mod topic;
 
+#[cfg(test)]
+extern crate std;
+#[cfg(test)]
+mod test_support;
+
 // This really needs to match that used by mqttrs.
 const TOPIC_LENGTH: usize = 256;
-const PAYLOAD_LENGTH: usize = 2048;
+pub(crate) const PAYLOAD_LENGTH: usize = 2048;
 
 /// A fixed length stack allocated string. The length is fixed by the mqttrs crate.
 pub type TopicString = String<TOPIC_LENGTH>;
@@ -214,10 +220,12 @@ impl<'t, T: Deref<Target = str> + 't, L: Publishable + 't, const S: usize>
             McutieTask {
                 network: self.network,
                 broker: self.broker,
-                last_will: self.last_will,
-                username: self.username,
-                password: self.password,
-                subscriptions: self.subscriptions,
+                connection: Connection {
+                    last_will: self.last_will,
+                    username: self.username,
+                    password: self.password,
+                    subscriptions: self.subscriptions,
+                },
             },
         )
     }

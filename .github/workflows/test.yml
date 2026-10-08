@@ -74,8 +74,17 @@ jobs:
       - name: Run tests
         run: cargo test
 
+      - name: Run tests basic
+        run: cargo test --no-default-features
+
+      - name: Run tests serde
+        run: cargo test --no-default-features --features serde
+
+      - name: Run tests homeassistant with log
+        run: cargo test --no-default-features --features homeassistant,log
+
       - name: Clippy
-        run: cargo clippy -- --deny "warnings"
+        run: cargo clippy --all-targets -- --deny "warnings"
 
       - name: Rustfmt
         run: cargo fmt --check

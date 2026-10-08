@@ -45,8 +45,10 @@ use serde::{
 };
 
 use crate::{
-    device_id, device_type, homeassistant::ser::DiscoverySerializer, io::publish, Error,
-    McutieTask, MqttMessage, Payload, Publishable, Topic, TopicString, DATA_CHANNEL,
+    device_id, device_type,
+    homeassistant::ser::DiscoverySerializer,
+    io::{publish, Connection},
+    Error, MqttMessage, Payload, Publishable, Topic, TopicString, DATA_CHANNEL,
 };
 
 pub mod binary_sensor;
@@ -75,7 +77,7 @@ pub trait Component: Serialize {
     ) -> impl Future<Output = Result<(), Error>>;
 }
 
-impl<'t, T, L, const S: usize> McutieTask<'t, T, L, S>
+impl<'t, T, L, const S: usize> Connection<'t, T, L, S>
 where
     T: Deref<Target = str> + 't,
     L: Publishable + 't,
@@ -291,5 +293,125 @@ impl<const A: usize, C: Component> Serialize for Entity<'_, A, C> {
         };
 
         self.component.serialize(outer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        binary_sensor::{BinarySensor, BinarySensorClass},
+        AvailabilityState, AvailabilityTopics, Device, Entity, Origin,
+    };
+    use crate::{
+        test_support::{init_device, to_json},
+        Topic,
+    };
+
+    fn entity<const A: usize>(
+        availability: AvailabilityTopics<'static, A>,
+    ) -> Entity<'static, A, BinarySensor> {
+        Entity {
+            device: Device::new(),
+            origin: Origin::new(),
+            object_id: "motion",
+            unique_id: None,
+            name: "Motion",
+            availability,
+            state_topic: None,
+            command_topic: None,
+            component: BinarySensor { device_class: None },
+        }
+    }
+
+    #[test]
+    fn availability_state() {
+        assert_eq!(AvailabilityState::Online.as_ref(), b"online");
+        assert_eq!(AvailabilityState::Offline.as_ref(), b"offline");
+    }
+
+    #[test]
+    fn topic_json() {
+        init_device();
+        assert_eq!(
+            to_json(&Topic::Device("state")),
+            r#""testdev/0123456789ab/state""#
+        );
+        assert_eq!(to_json(&Topic::General("a/b")), r#""a/b""#);
+    }
+
+    #[test]
+    fn device_and_origin() {
+        init_device();
+        assert_eq!(
+            to_json(&Device::new()),
+            r#"{"name":"testdev","ids":"0123456789ab"}"#
+        );
+        assert_eq!(
+            to_json(&Device {
+                name: Some("Kitchen"),
+                configuration_url: Some("http://device.local"),
+            }),
+            r#"{"name":"Kitchen","ids":"0123456789ab","cu":"http://device.local"}"#
+        );
+        assert_eq!(to_json(&Origin::new()), r#"{"name":"testdev"}"#);
+        assert_eq!(to_json(&Origin { name: Some("fw") }), r#"{"name":"fw"}"#);
+    }
+
+    #[test]
+    fn minimal_entity() {
+        init_device();
+        assert_eq!(
+            to_json(&entity::<0>(AvailabilityTopics::None)),
+            concat!(
+                r#"{"dev":{"name":"testdev","ids":"0123456789ab"},"o":{"name":"testdev"},"#,
+                r#""p":"binary_sensor","obj_id":"motion","name":"Motion","device_class":null}"#
+            )
+        );
+    }
+
+    #[test]
+    fn full_entity() {
+        init_device();
+        let entity = Entity {
+            unique_id: Some("motion1"),
+            state_topic: Some(Topic::Device("motion")),
+            command_topic: Some(Topic::DeviceType("cmd")),
+            component: BinarySensor {
+                device_class: Some(BinarySensorClass::Motion),
+            },
+            ..entity(AvailabilityTopics::All([
+                Topic::Device("status"),
+                Topic::General("bridge/status"),
+            ]))
+        };
+
+        assert_eq!(
+            to_json(&entity),
+            concat!(
+                r#"{"dev":{"name":"testdev","ids":"0123456789ab"},"o":{"name":"testdev"},"#,
+                r#""p":"binary_sensor","obj_id":"motion","name":"Motion","#,
+                r#""stat_t":"testdev/0123456789ab/motion","cmd_t":"testdev/cmd","#,
+                r#""avty_mode":"all","avty":[{"topic":"testdev/0123456789ab/status"},"#,
+                r#"{"topic":"bridge/status"}],"uniq_id":"motion1","device_class":"motion"}"#
+            )
+        );
+    }
+
+    #[test]
+    fn availability_modes() {
+        init_device();
+        let any = to_json(&entity(AvailabilityTopics::Any([Topic::General("a")])));
+        assert!(any.contains(r#""avty_mode":"any","avty":[{"topic":"a"}]"#));
+
+        let latest = to_json(&entity(AvailabilityTopics::Latest([Topic::General("a")])));
+        assert!(latest.contains(r#""avty_mode":"latest","avty":[{"topic":"a"}]"#));
+    }
+
+    #[test]
+    fn publish_state_without_topic() {
+        let result = futures_executor::block_on(
+            entity::<0>(AvailabilityTopics::None).publish_state(true.into()),
+        );
+        assert!(matches!(result, Err(crate::Error::Invalid)));
     }
 }

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{homeassistant::Component, Error, Publishable, Topic};
 
 /// The state of the sensor. Can be easily converted to or from a [`bool`].
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(from = "&str", into = "&'static str")]
 #[allow(missing_docs)]
 pub enum BinarySensorState {
@@ -47,7 +47,7 @@ impl From<BinarySensorState> for bool {
     fn from(val: BinarySensorState) -> Self {
         match val {
             BinarySensorState::On => true,
-            BinarySensorState::Off => true,
+            BinarySensorState::Off => false,
         }
     }
 }
@@ -116,5 +116,51 @@ impl Component for BinarySensor {
         state: Self::State,
     ) -> Result<(), Error> {
         topic.with_bytes(state).publish().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BinarySensor, BinarySensorClass, BinarySensorState};
+    use crate::test_support::to_json;
+
+    #[test]
+    fn state_conversions() {
+        assert_eq!(BinarySensorState::from(true), BinarySensorState::On);
+        assert_eq!(BinarySensorState::from(false), BinarySensorState::Off);
+        assert!(bool::from(BinarySensorState::On));
+        assert!(!bool::from(BinarySensorState::Off));
+
+        assert_eq!(BinarySensorState::from("ON"), BinarySensorState::On);
+        assert_eq!(BinarySensorState::from("OFF"), BinarySensorState::Off);
+        assert_eq!(BinarySensorState::from("on"), BinarySensorState::Off);
+        assert_eq!(<&str>::from(BinarySensorState::On), "ON");
+        assert_eq!(<&str>::from(BinarySensorState::Off), "OFF");
+
+        assert_eq!(BinarySensorState::On.as_ref(), b"ON");
+        assert_eq!(BinarySensorState::Off.as_ref(), b"OFF");
+    }
+
+    #[test]
+    fn state_json() {
+        assert_eq!(to_json(&BinarySensorState::On), r#""ON""#);
+        assert_eq!(to_json(&BinarySensorState::Off), r#""OFF""#);
+
+        let (state, _): (BinarySensorState, _) = serde_json_core::from_str(r#""ON""#).unwrap();
+        assert_eq!(state, BinarySensorState::On);
+    }
+
+    #[test]
+    fn component_json() {
+        assert_eq!(
+            to_json(&BinarySensor {
+                device_class: Some(BinarySensorClass::GarageDoor)
+            }),
+            r#"{"device_class":"garage_door"}"#
+        );
+        assert_eq!(
+            to_json(&BinarySensor { device_class: None }),
+            r#"{"device_class":null}"#
+        );
     }
 }

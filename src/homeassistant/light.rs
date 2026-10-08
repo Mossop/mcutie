@@ -61,7 +61,7 @@ struct LedPayload<'a> {
 }
 
 /// The color of the light in various forms.
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase", tag = "color_mode", content = "color")]
 #[allow(missing_docs)]
 pub enum Color {
@@ -380,5 +380,234 @@ impl<const C: usize, const E: usize> Component for Light<'_, C, E> {
         state: Self::State,
     ) -> Result<(), Error> {
         topic.with_json(state).publish().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Color, Light, LightState, SupportedColorMode};
+    use crate::{
+        homeassistant::binary_sensor::BinarySensorState, test_support::to_json, Error, Payload,
+    };
+
+    fn parse(json: &str) -> Result<LightState<'_>, Error> {
+        // Leak so the returned state can borrow from the payload.
+        let payload = std::boxed::Box::leak(std::boxed::Box::new(
+            Payload::from(json.as_bytes()).unwrap(),
+        ));
+        LightState::from_payload(payload)
+    }
+
+    #[test]
+    fn parse_on_off() {
+        let state = parse(r#"{"state":"ON"}"#).unwrap();
+        assert_eq!(state.state, BinarySensorState::On);
+        assert_eq!(state.color, Color::None);
+        assert!(state.effect.is_none());
+
+        let state = parse(r#"{"state":"OFF","effect":"rainbow"}"#).unwrap();
+        assert_eq!(state.state, BinarySensorState::Off);
+        assert_eq!(state.effect, Some("rainbow"));
+    }
+
+    #[test]
+    fn parse_brightness_and_temp() {
+        let state = parse(r#"{"state":"ON","brightness":128}"#).unwrap();
+        assert_eq!(state.color, Color::Brightness(128));
+
+        // Color temperature takes priority over brightness.
+        let state = parse(r#"{"state":"ON","brightness":128,"color_temp":350}"#).unwrap();
+        assert_eq!(state.color, Color::ColorTemp(350));
+    }
+
+    #[test]
+    fn parse_colors() {
+        let state = parse(r#"{"state":"ON","color":{"x":0.25,"y":0.5}}"#).unwrap();
+        assert_eq!(state.color, Color::Xy { x: 0.25, y: 0.5 });
+
+        let state = parse(r#"{"state":"ON","color":{"h":180.0,"s":50.0}}"#).unwrap();
+        assert_eq!(
+            state.color,
+            Color::Hs {
+                hue: 180.0,
+                saturation: 50.0
+            }
+        );
+
+        let state = parse(r#"{"state":"ON","color":{"r":1,"g":2,"b":3}}"#).unwrap();
+        assert_eq!(
+            state.color,
+            Color::Rgb {
+                red: 1,
+                green: 2,
+                blue: 3
+            }
+        );
+
+        let state = parse(r#"{"state":"ON","color":{"r":1,"g":2,"b":3,"w":4}}"#).unwrap();
+        assert_eq!(
+            state.color,
+            Color::Rgbw {
+                red: 1,
+                green: 2,
+                blue: 3,
+                white: 4
+            }
+        );
+
+        let state = parse(r#"{"state":"ON","color":{"r":1,"g":2,"b":3,"c":4,"w":5}}"#).unwrap();
+        assert_eq!(
+            state.color,
+            Color::Rgbww {
+                red: 1,
+                green: 2,
+                blue: 3,
+                cool_white: 4,
+                warm_white: 5
+            }
+        );
+
+        // A color object takes priority over everything else.
+        let state =
+            parse(r#"{"state":"ON","brightness":5,"color_temp":300,"color":{"r":9}}"#).unwrap();
+        assert_eq!(
+            state.color,
+            Color::Rgb {
+                red: 9,
+                green: 0,
+                blue: 0
+            }
+        );
+    }
+
+    #[test]
+    fn parse_invalid() {
+        assert!(matches!(parse("not json"), Err(Error::PacketError)));
+        assert!(matches!(
+            parse(r#"{"brightness":5}"#),
+            Err(Error::PacketError)
+        ));
+    }
+
+    fn state_json(color: Color, effect: Option<&str>) -> std::string::String {
+        to_json(&LightState {
+            state: BinarySensorState::On,
+            color,
+            effect,
+        })
+    }
+
+    #[test]
+    fn serialize_state() {
+        assert_eq!(state_json(Color::None, None), r#"{"state":"ON"}"#);
+        assert_eq!(
+            state_json(Color::None, Some("flash")),
+            r#"{"state":"ON","effect":"flash"}"#
+        );
+        assert_eq!(
+            state_json(Color::Brightness(10), None),
+            r#"{"state":"ON","brightness":10}"#
+        );
+        assert_eq!(
+            state_json(Color::ColorTemp(300), None),
+            r#"{"state":"ON","color_temp":300}"#
+        );
+        assert_eq!(
+            state_json(
+                Color::Hs {
+                    hue: 1.5,
+                    saturation: 2.5
+                },
+                None
+            ),
+            r#"{"state":"ON","color_mode":"hs","color":{"h":1.5,"s":2.5}}"#
+        );
+        assert_eq!(
+            state_json(Color::Xy { x: 0.5, y: 0.25 }, None),
+            r#"{"state":"ON","color_mode":"xy","color":{"x":0.5,"y":0.25}}"#
+        );
+        assert_eq!(
+            state_json(
+                Color::Rgb {
+                    red: 1,
+                    green: 2,
+                    blue: 3
+                },
+                None
+            ),
+            r#"{"state":"ON","color_mode":"rgb","color":{"r":1,"g":2,"b":3}}"#
+        );
+        assert_eq!(
+            state_json(
+                Color::Rgbw {
+                    red: 1,
+                    green: 2,
+                    blue: 3,
+                    white: 4
+                },
+                None
+            ),
+            r#"{"state":"ON","color_mode":"rgbw","color":{"r":1,"g":2,"b":3,"w":4}}"#
+        );
+        assert_eq!(
+            state_json(
+                Color::Rgbww {
+                    red: 1,
+                    green: 2,
+                    blue: 3,
+                    cool_white: 4,
+                    warm_white: 5
+                },
+                Some("fx")
+            ),
+            r#"{"state":"ON","effect":"fx","color_mode":"rgbww","color":{"r":1,"g":2,"b":3,"w":5,"c":4}}"#
+        );
+    }
+
+    #[test]
+    fn state_round_trip() {
+        let json = state_json(
+            Color::Rgbw {
+                red: 10,
+                green: 20,
+                blue: 30,
+                white: 40,
+            },
+            Some("fx"),
+        );
+        let state = parse(&json).unwrap();
+        assert_eq!(state.state, BinarySensorState::On);
+        assert_eq!(state.effect, Some("fx"));
+        assert_eq!(
+            state.color,
+            Color::Rgbw {
+                red: 10,
+                green: 20,
+                blue: 30,
+                white: 40
+            }
+        );
+    }
+
+    #[test]
+    fn component_json() {
+        assert_eq!(
+            to_json(&Light {
+                supported_color_modes: [],
+                effects: [],
+            }),
+            r#"{"schema":"json"}"#
+        );
+        assert_eq!(
+            to_json(&Light {
+                supported_color_modes: [
+                    SupportedColorMode::OnOff,
+                    SupportedColorMode::ColorTemp,
+                    SupportedColorMode::Rgbww
+                ],
+                effects: ["rainbow", "flash"],
+            }),
+            r#"{"schema":"json","sup_clrm":["onoff","color_temp","rgbww"],"effect":true,"fx_list":["rainbow","flash"]}"#
+        );
     }
 }
