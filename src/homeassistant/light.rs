@@ -61,7 +61,7 @@ struct LedPayload<'a> {
 }
 
 /// The color of the light in various forms.
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase", tag = "color_mode", content = "color")]
 #[allow(missing_docs)]
 pub enum Color {
@@ -401,48 +401,51 @@ mod tests {
     #[test]
     fn parse_on_off() {
         let state = parse(r#"{"state":"ON"}"#).unwrap();
-        assert!(state.state == BinarySensorState::On);
-        assert!(matches!(state.color, Color::None));
+        assert_eq!(state.state, BinarySensorState::On);
+        assert_eq!(state.color, Color::None);
         assert!(state.effect.is_none());
 
         let state = parse(r#"{"state":"OFF","effect":"rainbow"}"#).unwrap();
-        assert!(state.state == BinarySensorState::Off);
+        assert_eq!(state.state, BinarySensorState::Off);
         assert_eq!(state.effect, Some("rainbow"));
     }
 
     #[test]
     fn parse_brightness_and_temp() {
         let state = parse(r#"{"state":"ON","brightness":128}"#).unwrap();
-        assert!(matches!(state.color, Color::Brightness(128)));
+        assert_eq!(state.color, Color::Brightness(128));
 
         // Color temperature takes priority over brightness.
         let state = parse(r#"{"state":"ON","brightness":128,"color_temp":350}"#).unwrap();
-        assert!(matches!(state.color, Color::ColorTemp(350)));
+        assert_eq!(state.color, Color::ColorTemp(350));
     }
 
     #[test]
     fn parse_colors() {
         let state = parse(r#"{"state":"ON","color":{"x":0.25,"y":0.5}}"#).unwrap();
-        assert!(matches!(state.color, Color::Xy { x, y } if x == 0.25 && y == 0.5));
+        assert_eq!(state.color, Color::Xy { x: 0.25, y: 0.5 });
 
         let state = parse(r#"{"state":"ON","color":{"h":180.0,"s":50.0}}"#).unwrap();
-        assert!(matches!(
+        assert_eq!(
             state.color,
-            Color::Hs { hue, saturation } if hue == 180.0 && saturation == 50.0
-        ));
+            Color::Hs {
+                hue: 180.0,
+                saturation: 50.0
+            }
+        );
 
         let state = parse(r#"{"state":"ON","color":{"r":1,"g":2,"b":3}}"#).unwrap();
-        assert!(matches!(
+        assert_eq!(
             state.color,
             Color::Rgb {
                 red: 1,
                 green: 2,
                 blue: 3
             }
-        ));
+        );
 
         let state = parse(r#"{"state":"ON","color":{"r":1,"g":2,"b":3,"w":4}}"#).unwrap();
-        assert!(matches!(
+        assert_eq!(
             state.color,
             Color::Rgbw {
                 red: 1,
@@ -450,10 +453,10 @@ mod tests {
                 blue: 3,
                 white: 4
             }
-        ));
+        );
 
         let state = parse(r#"{"state":"ON","color":{"r":1,"g":2,"b":3,"c":4,"w":5}}"#).unwrap();
-        assert!(matches!(
+        assert_eq!(
             state.color,
             Color::Rgbww {
                 red: 1,
@@ -462,19 +465,19 @@ mod tests {
                 cool_white: 4,
                 warm_white: 5
             }
-        ));
+        );
 
         // A color object takes priority over everything else.
         let state =
             parse(r#"{"state":"ON","brightness":5,"color_temp":300,"color":{"r":9}}"#).unwrap();
-        assert!(matches!(
+        assert_eq!(
             state.color,
             Color::Rgb {
                 red: 9,
                 green: 0,
                 blue: 0
             }
-        ));
+        );
     }
 
     #[test]
@@ -573,9 +576,9 @@ mod tests {
             Some("fx"),
         );
         let state = parse(&json).unwrap();
-        assert!(state.state == BinarySensorState::On);
+        assert_eq!(state.state, BinarySensorState::On);
         assert_eq!(state.effect, Some("fx"));
-        assert!(matches!(
+        assert_eq!(
             state.color,
             Color::Rgbw {
                 red: 10,
@@ -583,7 +586,7 @@ mod tests {
                 blue: 30,
                 white: 40
             }
-        ));
+        );
     }
 
     #[test]

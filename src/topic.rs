@@ -29,7 +29,7 @@ use crate::{
 ///   let _ = DEVICE_AVAILABILITY.with_bytes(status.as_bytes()).publish().await;
 /// }
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Topic<T> {
     /// A topic that is prefixed with the device type.
     DeviceType(T),
@@ -288,24 +288,27 @@ mod tests {
 
     #[test]
     fn equality() {
-        assert!(Topic::Device("a") == Topic::Device("a"));
-        assert!(Topic::DeviceType("a") == Topic::DeviceType("a"));
-        assert!(Topic::General("a") == Topic::General("a"));
-        assert!(Topic::Device("a") != Topic::Device("b"));
-        assert!(Topic::Device("a") != Topic::DeviceType("a"));
-        assert!(Topic::Device("a") != Topic::General("a"));
-        assert!(Topic::DeviceType("a") != Topic::General("a"));
+        assert_eq!(Topic::Device("a"), Topic::Device("a"));
+        assert_eq!(Topic::DeviceType("a"), Topic::DeviceType("a"));
+        assert_eq!(Topic::General("a"), Topic::General("a"));
+        assert_ne!(Topic::Device("a"), Topic::Device("b"));
+        assert_ne!(Topic::Device("a"), Topic::DeviceType("a"));
+        assert_ne!(Topic::Device("a"), Topic::General("a"));
+        assert_ne!(Topic::DeviceType("a"), Topic::General("a"));
 
         let owned = Topic::General(TopicString::from("a"));
-        assert!(owned == Topic::General("a"));
+        assert_eq!(owned, Topic::General("a"));
     }
 
     #[test]
     fn as_ref() {
         let owned = TopicString::from("x/y");
-        assert!(Topic::Device(owned.clone()).as_ref() == Topic::Device("x/y"));
-        assert!(Topic::DeviceType(owned.clone()).as_ref() == Topic::DeviceType("x/y"));
-        assert!(Topic::General(owned).as_ref() == Topic::General("x/y"));
+        assert_eq!(Topic::Device(owned.clone()).as_ref(), Topic::Device("x/y"));
+        assert_eq!(
+            Topic::DeviceType(owned.clone()).as_ref(),
+            Topic::DeviceType("x/y")
+        );
+        assert_eq!(Topic::General(owned).as_ref(), Topic::General("x/y"));
     }
 
     #[test]
@@ -339,27 +342,44 @@ mod tests {
     #[test]
     fn from_str() {
         init_device();
-        assert!(Topic::from_str("testdev/0123456789ab/state").unwrap() == Topic::Device("state"));
-        assert!(Topic::from_str("testdev/state").unwrap() == Topic::DeviceType("state"));
-        assert!(
-            Topic::from_str("testdev/other/state").unwrap() == Topic::DeviceType("other/state")
+        assert_eq!(
+            Topic::from_str("testdev/0123456789ab/state").unwrap(),
+            Topic::Device("state")
         );
-        assert!(Topic::from_str("other/state").unwrap() == Topic::General("other/state"));
+        assert_eq!(
+            Topic::from_str("testdev/state").unwrap(),
+            Topic::DeviceType("state")
+        );
+        assert_eq!(
+            Topic::from_str("testdev/other/state").unwrap(),
+            Topic::DeviceType("other/state")
+        );
+        assert_eq!(
+            Topic::from_str("other/state").unwrap(),
+            Topic::General("other/state")
+        );
         // A prefix match must be followed by a separator.
-        assert!(Topic::from_str("testdevice/state").unwrap() == Topic::General("testdevice/state"));
-        assert!(
-            Topic::from_str("testdev/0123456789abc/x").unwrap()
-                == Topic::DeviceType("0123456789abc/x")
+        assert_eq!(
+            Topic::from_str("testdevice/state").unwrap(),
+            Topic::General("testdevice/state")
+        );
+        assert_eq!(
+            Topic::from_str("testdev/0123456789abc/x").unwrap(),
+            Topic::DeviceType("0123456789abc/x")
         );
     }
 
     #[test]
     fn from_str_exact_prefix() {
         init_device();
-        assert!(Topic::from_str("testdev").unwrap() == Topic::General("testdev"));
-        assert!(Topic::from_str("testdev/").unwrap() == Topic::DeviceType(""));
-        assert!(
-            Topic::from_str("testdev/0123456789ab").unwrap() == Topic::DeviceType("0123456789ab")
+        assert_eq!(
+            Topic::from_str("testdev").unwrap(),
+            Topic::General("testdev")
+        );
+        assert_eq!(Topic::from_str("testdev/").unwrap(), Topic::DeviceType(""));
+        assert_eq!(
+            Topic::from_str("testdev/0123456789ab").unwrap(),
+            Topic::DeviceType("0123456789ab")
         );
     }
 
@@ -371,7 +391,7 @@ mod tests {
             Topic::DeviceType("c"),
             Topic::General("d/e/f"),
         ] {
-            assert!(Topic::from_str(&path(&topic)).unwrap() == topic);
+            assert_eq!(Topic::from_str(&path(&topic)).unwrap(), topic);
         }
     }
 }

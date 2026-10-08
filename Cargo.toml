@@ -45,7 +45,7 @@ futures-util = "0.3.32"
 static_cell = "2.1.1"
 
 # duplicate dependencies for testing
-# these dependencies need the std featue in tests
+# these dependencies need the std feature in tests
 embassy-sync = { version = "0.8.0", features = ["std"] }
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
 critical-section = { version = "1.2", features = ["std"] }

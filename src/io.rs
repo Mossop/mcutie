@@ -708,7 +708,7 @@ mod tests {
                 let MqttMessage::Publish(topic, payload) = DATA_CHANNEL.receive().await else {
                     panic!("expected publish");
                 };
-                assert!(topic == expected);
+                assert_eq!(topic, expected);
                 assert_eq!(&*payload, b"data");
             }
         }));
@@ -784,7 +784,7 @@ mod tests {
             let MqttMessage::Publish(topic, payload) = DATA_CHANNEL.receive().await else {
                 panic!("expected publish");
             };
-            assert!(topic == Topic::General("split"));
+            assert_eq!(topic, Topic::General("split"));
             assert_eq!(&*payload, b"payload");
 
             // Several packets in a single read, with a trailing partial packet.
@@ -800,7 +800,7 @@ mod tests {
                 let MqttMessage::Publish(topic, _) = DATA_CHANNEL.receive().await else {
                     panic!("expected publish");
                 };
-                assert!(topic == Topic::General(expected));
+                assert_eq!(topic, Topic::General(expected));
             }
         }));
     }

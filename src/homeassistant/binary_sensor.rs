@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{homeassistant::Component, Error, Publishable, Topic};
 
 /// The state of the sensor. Can be easily converted to or from a [`bool`].
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(from = "&str", into = "&'static str")]
 #[allow(missing_docs)]
 pub enum BinarySensorState {
@@ -126,14 +126,14 @@ mod tests {
 
     #[test]
     fn state_conversions() {
-        assert!(BinarySensorState::from(true) == BinarySensorState::On);
-        assert!(BinarySensorState::from(false) == BinarySensorState::Off);
+        assert_eq!(BinarySensorState::from(true), BinarySensorState::On);
+        assert_eq!(BinarySensorState::from(false), BinarySensorState::Off);
         assert!(bool::from(BinarySensorState::On));
         assert!(!bool::from(BinarySensorState::Off));
 
-        assert!(BinarySensorState::from("ON") == BinarySensorState::On);
-        assert!(BinarySensorState::from("OFF") == BinarySensorState::Off);
-        assert!(BinarySensorState::from("on") == BinarySensorState::Off);
+        assert_eq!(BinarySensorState::from("ON"), BinarySensorState::On);
+        assert_eq!(BinarySensorState::from("OFF"), BinarySensorState::Off);
+        assert_eq!(BinarySensorState::from("on"), BinarySensorState::Off);
         assert_eq!(<&str>::from(BinarySensorState::On), "ON");
         assert_eq!(<&str>::from(BinarySensorState::Off), "OFF");
 
@@ -147,7 +147,7 @@ mod tests {
         assert_eq!(to_json(&BinarySensorState::Off), r#""OFF""#);
 
         let (state, _): (BinarySensorState, _) = serde_json_core::from_str(r#""ON""#).unwrap();
-        assert!(state == BinarySensorState::On);
+        assert_eq!(state, BinarySensorState::On);
     }
 
     #[test]
